@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Routing\Controller;
 use Adldap\Laravel\Facades\Adldap;
-
 
 class LoginController extends Controller
 {
+    protected $data = []; // the information we send to the view
+
     /*
     |--------------------------------------------------------------------------
     | Login Controller
@@ -22,15 +21,9 @@ class LoginController extends Controller
     | to conveniently provide its functionality to your applications.
     |
     */
-
-    use AuthenticatesUsers;
-
-    /**
-     * Where to redirect users after login.
-     *
-     * @var string
-     */
-    protected $redirectTo = RouteServiceProvider::HOME;
+    use AuthenticatesUsers {
+        logout as defaultLogout;
+    }
 
     /**
      * Create a new controller instance.
@@ -39,30 +32,64 @@ class LoginController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('guest')->except('logout');
+        $guard = backpack_guard_name();
+
+        $this->middleware("guest:$guard", ['except' => 'logout']);
+
+        // ----------------------------------
+        // Use the admin prefix in all routes
+        // ----------------------------------
+
+        // If not logged in redirect here.
+        $this->loginPath = property_exists($this, 'loginPath') ? $this->loginPath
+            : backpack_url('login');
+
+        // Redirect here after successful login.
+        $this->redirectTo = property_exists($this, 'redirectTo') ? $this->redirectTo
+            : backpack_url('dashboard');
+
+        // Redirect here after logout.
+        $this->redirectAfterLogout = property_exists($this, 'redirectAfterLogout') ? $this->redirectAfterLogout
+            : backpack_url();
     }
 
+    /**
+     * Return custom username for authentication.
+     *
+     * @return string
+     */
     public function username()
     {
-        // we could return config('ldap_auth...') directly
-        // but it seems to change a lot and with this check we make sure
-        // that it will fail in future versions, if changed.
-        // you can return the config(...) directly if you want.
-        $column_name = config('ldap_auth.identifiers.database.username_column', null);
-        if ( !$column_name ) {
-            die('Error in LoginController::username(): could not find username column.');
-        }
-        return $column_name;
+        return backpack_authentication_column();
     }
 
-    protected function validateLogin(Request $request)
+    /**
+     * Log the user out and redirect him to specific location.
+     *
+     * @param \Illuminate\Http\Request $request
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function logout(Request $request)
     {
-        $this->validate($request, [
-            $this->username() => 'required|string|regex:/^[A-Za-z]+\.[A-Za-z]+$/',
-            'password' => 'required|string',
-        ]);
+        // Do the default logout procedure
+        $this->guard()->logout();
+
+        // And redirect to custom location
+        return redirect($this->redirectAfterLogout);
     }
 
+    /**
+     * Get the guard to be used during logout.
+     *
+     * @return \Illuminate\Contracts\Auth\StatefulGuard
+     */
+    protected function guard()
+    {
+        return backpack_auth();
+    }
+
+    
     protected function attemptLogin(Request $request)
     {
         
@@ -72,6 +99,8 @@ class LoginController extends Controller
 
         $user_format = env('LDAP_USER_FORMAT');
         $userdn = sprintf($user_format, $username);
+
+        
 
         if (Adldap::auth()->attempt($userdn, $password, $bindAsUser = true)) {
 
@@ -155,5 +184,20 @@ class LoginController extends Controller
         return $property->getValue($obj);
     }
 
-    
+    // -------------------------------------------------------
+    // Laravel overwrites for loading backpack views
+    // -------------------------------------------------------
+
+    /**
+     * Show the application login form.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function showLoginForm()
+    {
+        $this->data['title'] = trans('backpack::base.login'); // set the page title
+        $this->data['username'] = $this->username();
+
+        return view(backpack_view('auth.login'), $this->data);
+    }
 }
