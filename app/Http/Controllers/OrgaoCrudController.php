@@ -29,6 +29,7 @@ class OrgaoCrudController extends CrudController
         $this->crud->setModel('App\Models\Orgao');
         $this->crud->setRoute(config('backpack.base.route_prefix') . '/orgao');
         $this->crud->setEntityNameStrings('Órgão', 'Órgãos');
+        $this->crud->enableExportButtons();
     }
 
     protected function setupListOperation()
