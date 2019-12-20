@@ -20,5 +20,5 @@ Route::group([
         }
 
     // custom admin routes
+    Route::crud('orgao', 'OrgaoCrudController');
 }); // this should be the absolute last line of this file
-
