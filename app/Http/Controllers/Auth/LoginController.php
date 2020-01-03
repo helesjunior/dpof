@@ -6,6 +6,7 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Adldap\Laravel\Facades\Adldap;
+use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
@@ -89,10 +90,10 @@ class LoginController extends Controller
         return backpack_auth();
     }
 
-    
+
     protected function attemptLogin(Request $request)
     {
-        
+
         $credentials = $request->only($this->username(), 'password');
         $username = $credentials[$this->username()];
         $password = $credentials['password'];
@@ -100,14 +101,14 @@ class LoginController extends Controller
         $user_format = env('LDAP_USER_FORMAT');
         $userdn = sprintf($user_format, $username);
 
-        
+
 
         if (Adldap::auth()->attempt($userdn, $password, $bindAsUser = true)) {
 
             $user = \App\User::where($this->username(), $username)->first();
-            
+
             if (!$user) {
-                
+
                 $user = new \App\User();
                 $user->username = $username;
                 $user->password = '';
@@ -133,7 +134,7 @@ class LoginController extends Controller
             // log error
             return false;
         }
-        
+
         $ldapuser_attrs = null;
 
         $attrs = [];
@@ -200,4 +201,5 @@ class LoginController extends Controller
 
         return view(backpack_view('auth.login'), $this->data);
     }
+    
 }
