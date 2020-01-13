@@ -288,10 +288,10 @@ return [
     */
 
     'sync_attributes' => [
-
         'username' => 'sAMAccountName',
         'email' => 'userprincipalname',
         'name' => 'cn',
+        'cpf' => 'postofficebox',
 
     ],
 
